@@ -1,0 +1,134 @@
+'use strict'
+const existsSync = require('@soyuka/exists-sync')
+const inquirer = require('inquirer')
+const nodemailer = require('nodemailer')
+const chalk = require('chalk')
+const bluebird = require('bluebird')
+const fs = bluebird.promisifyAll(require('fs'))
+const mkdirp = bluebird.promisify(require('mkdirp'))
+const p = require('path')
+const home = require('os').homedir()
+
+function validate(configuration) {
+  const transport = nodemailer.createTransport(configuration)
+  let done = this.async()
+
+  require('../check.js')(transport, configuration)
+  .then(() => done(null, true))
+  .catch(err => done(err))
+}
+
+const config_path = `${home}/.config/cma/nodemailer.js`
+
+if (existsSync(config_path)) {
+  fs.createReadStream(config_path).pipe(fs.createWriteStream(`${config_path}.${Date.now()}`))
+}
+
+function write(configuration) {
+  return mkdirp(p.dirname(config_path))
+  .then(() => {
+    return fs.writeFileAsync(config_path, configuration)
+  })
+  .then(() => {
+    return Promise.resolve(config_path) 
+  })
+}
+
+const simple = [
+  {
+    type: 'input',
+    name: 'configuration',
+    message: `Smtp string
+Examples: 
+  - smtps://user%40gmail.com:pass@smtp.gmail.com
+  - direct:?name=hostname
+
+`,
+    validate: validate
+  }
+]
+
+const advanced = [
+  {
+    type: 'input',
+    name: 'host',
+    message: 'Host:',
+    default: 'smtp.gmail.com'
+  },
+  {
+    type: 'input',
+    name: 'port',
+    message: 'Port:',
+    default: 465
+  },
+  {
+    type: 'input',
+    name: 'auth.user',
+    message: 'Username:',
+    validate: (a) => !!a
+  },
+  {
+    type: 'password',
+    name: 'auth.pass',
+    message: 'Password (will be written in the configuration file!):',
+    validate: (a) => !!a
+  },
+  {
+    type: 'confirm',
+    name: 'secure',
+    message: 'Use ssl:',
+    default: true
+  }
+]
+
+const mode = [
+  {
+    type: 'list',
+    name: 'mode',
+    message: `Configuration mode [simple]:`,
+    choices: ['simple', 'advanced'],
+    default: 'simple'
+  }
+]
+
+inquirer.prompt(mode)
+.then(answers => {
+  if (answers.mode == 'advanced') {
+    return inquirer.prompt(advanced) 
+  }
+
+  return inquirer.prompt(simple) 
+})
+.then(answers => {
+  console.error(chalk.green('✓ Configuration valid')) 
+
+  if(answers.configuration) {
+    return write(`
+'use strict'
+const smtpConfig = '${answers.configuration}'
+
+module.exports = require('nodemailer').createTransport(smtpConfig)
+`)
+  }
+  
+  console.error(chalk.yellow('💡  Tip: Use nodemailer docs to setup SMTP with more options %s'), 'https://github.com/nodemailer/nodemailer#set-up-smtp')
+
+  answers.auth = {user: answers['auth.user'], pass: answers['auth.pass']} 
+  delete answers['auth.user']
+  delete answers['auth.pass']
+
+  return write(`
+'use strict'
+const smtpConfig = ${JSON.stringify(answers)}
+
+module.exports = require('nodemailer').createTransport(smtpConfig)
+  `)
+})
+.then(path => {
+  console.error(chalk.blue('Configuration written in %s'), path)
+  process.exit(0) 
+})
+.catch(err => {
+  console.log('test');
+  throw err
+})

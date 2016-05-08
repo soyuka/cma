@@ -1,0 +1,129 @@
+'use strict'
+const existsSync = require('@soyuka/exists-sync')
+const p = require('path')
+const fs = require('fs')
+const chalk = require('chalk')
+const sendmail = require('../sendmail.js')
+
+const boolean = [
+  'M',
+  'md',
+  'markdown',
+  'H',
+  'html',
+  'I',
+  'interactive',
+  'verbose',
+  'version'
+]
+
+const string = [
+  'config',
+  'R',
+  'reply-to', 'a',
+  'attachment',
+  'message',
+  'm'
+]
+
+const argv = require('minimist')(process.argv.slice(2), {
+  string,
+  boolean,
+})
+
+function firstExistingPath(paths) {
+  for (let i = 0; i < paths.length; i++) {
+    if (existsSync(paths[i])) {
+      return paths[i]
+    }
+  }
+
+  return false
+}
+
+if(argv.version == true) {
+  console.log(require('../package.json').version)
+  process.exit(0)
+}
+
+if(argv._[0] === 'config') {
+  require('./cma-config')
+  return
+}
+
+if (argv.help || argv.h || process.argv.slice(2).filter(e => !~boolean.indexOf(e)).length == 0) {
+  let stream = fs.createReadStream(`${__dirname}/cma.man`)
+
+  stream.on('end', () => process.exit(1))
+
+  stream.pipe(process.stdout)
+  return
+}
+
+let config_path = firstExistingPath([
+  argv.config,
+  p.resolve(process.env.CMA_CONFIG_DIR || process.cwd(), 'nodemailer.js'),
+  p.resolve(require('os').homedir(), '.config/cma/nodemailer.js'), 
+  p.resolve(__dirname, '../test/nodemailer.js')
+])
+
+let transport
+
+try {
+    transport = require(config_path)
+} catch(e) {
+  console.error(chalk.red('✗ Configuration is not valid javascript or does not exist'))
+  throw e
+}
+
+if (argv._[0] === 'check') {
+  require('../check.js')(transport, config_path)
+  .then(() => process.exit(0))
+  .catch(() => process.exit(1))
+  return
+}
+
+transport.use('compile', require('nodemailer-markdown').markdown({useEmbeddedImages: true}))
+
+if (argv.I || argv.interactive) {
+  require('../interactive.js')(transport)
+  return
+}
+
+function error(err) {
+  console.error(chalk.red('Sending mail failed'))
+  console.error(chalk.red(err.message))
+
+  if (argv.verbose) {
+    console.error(err.stack) 
+  }
+
+  process.exit(1)
+}
+
+function success(infos) {
+  console.error(chalk.blue('Email sent to ', argv._.join(' ')))
+
+  if (argv.verbose) {
+    console.error(infos)
+  }
+}
+
+let promise 
+
+if (existsSync(argv._[argv._.length - 1])) {
+  let file = argv._.splice(argv._.length - 1, 1)[0]
+  let stream = fs.createReadStream(file)
+  promise = sendmail(transport, stream, argv)
+} else if (argv.m) {
+  promise = sendmail(transport, argv.m, argv)
+}
+
+if (promise) {
+  return promise.then(infos => success(infos))
+  .catch(err => error(err))
+}
+
+sendmail(transport, process.stdin, argv)
+.then(infos => success(infos))
+.catch(err => error(err))
