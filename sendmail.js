@@ -4,7 +4,7 @@ const chalk = require('chalk')
 const p = require('path')
 const schema = {
   from: ['from', 'f'],
-  to: ['_'],
+  to: ['_', 'to'],
   cc: ['cc', 'c'],
   bcc: ['bcc', 'b'],
   subject: ['subject', 's'],

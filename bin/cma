@@ -85,11 +85,6 @@ if (argv._[0] === 'check') {
 
 transport.use('compile', require('nodemailer-markdown').markdown({useEmbeddedImages: true}))
 
-if (argv.I || argv.interactive) {
-  require('../interactive.js')(transport)
-  return
-}
-
 function error(err) {
   console.error(chalk.red('Sending mail failed'))
   console.error(chalk.red(err.message))
@@ -102,11 +97,18 @@ function error(err) {
 }
 
 function success(infos) {
-  console.error(chalk.blue('Email sent to ', argv._.join(' ')))
+  console.error(chalk.blue('Email sent %s'), argv._.length ? 'to ' + argv._.join(' ') : '')
 
   if (argv.verbose) {
     console.error(infos)
   }
+}
+
+if (argv.I || argv.interactive) {
+  require('../interactive.js')(transport)
+  .then(infos => success(infos))
+  .catch(err => error(err))
+  return
 }
 
 let promise 

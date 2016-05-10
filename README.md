@@ -7,7 +7,7 @@
 ## Install
 
   ```
-    npm install -g cma
+  npm install -g cma
   ```
 
 ## Synopsis
