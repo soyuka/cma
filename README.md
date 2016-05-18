@@ -27,6 +27,7 @@
   cma -s "hello" -m "world" me@example.org
   cma -Ha filename.jpg
   cma -H -a cover.pdf -a photos.zip someone@example.org < holidays.html
+  keybase pgp encrypt -s -m 'Hello crypted world!' someone | cma someone@example.org
   ```
 
 ## Options
@@ -47,3 +48,18 @@
   --help -h
   --version 
   ```
+
+## Advanced configuration
+
+Check out `~/.config/cma/nodemailer.js`, it's a javascript function that exports a `nodemailer` transport:
+
+```javascript
+'use strict'
+const smtpConfig = '';
+
+module.exports = function(nodemailer) {
+  return nodemailer.createTransport(smtpConfig)
+}
+```
+
+Lot of options are available to configure SMTP, best is to checkout the [nodemailer docs](https://github.com/nodemailer/nodemailer#set-up-smtp)!

@@ -18,6 +18,7 @@ EXAMPLES
   cma -s "hello" -m "world" me@example.org
   cma -Ha filename.jpg
   cma -H -a cover.pdf -a photos.zip someone@example.org < holidays.html
+  keybase pgp encrypt -s -m 'Hello crypted world!' someone | cma someone@example.org
 
 OPTIONS
 

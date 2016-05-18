@@ -74,7 +74,7 @@ let transport
 try {
     transport = require(config_path)(require('nodemailer'))
 } catch(e) {
-  console.error(chalk.red('✗ Configuration is not valid javascript or does not exist'))
+  console.error(chalk.red('✗ Configuration is not valid javascript or does not exist. Run `cma config` or check the file at %s.'), config_path)
   throw e
 }
 
