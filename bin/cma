@@ -72,7 +72,7 @@ let config_path = firstExistingPath([
 let transport
 
 try {
-    transport = require(config_path)
+    transport = require(config_path)(require('nodemailer'))
 } catch(e) {
   console.error(chalk.red('✗ Configuration is not valid javascript or does not exist'))
   throw e
